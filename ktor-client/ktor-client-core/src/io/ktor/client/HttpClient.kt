@@ -5,6 +5,8 @@ import io.ktor.client.engine.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.response.*
+import io.ktor.content.*
+import io.ktor.pipeline.*
 import io.ktor.util.*
 import kotlinx.coroutines.experimental.*
 import java.io.*
@@ -38,6 +40,18 @@ class HttpClient private constructor(
     val responsePipeline = HttpResponsePipeline()
 
     /**
+     * Pipeline used for sending request
+     */
+    val sendPipeline = HttpSendChain { requestData: HttpRequestData ->
+        val call = HttpClientCall(this)
+        val (request, response) = engine.execute(call, requestData)
+        call.request = request
+        call.response = response
+
+        call
+    }
+
+    /**
      * Typed attributes used as a lightweight container for this client.
      */
     val attributes = Attributes()
@@ -57,12 +71,17 @@ class HttpClient private constructor(
     /**
      * Creates a new [HttpRequest] from a request [data] and a specific client [call].
      */
-    fun createRequest(data: HttpRequestData, call: HttpClientCall): HttpRequest =
-            engine.prepareRequest(data, call)
+    suspend fun execute(builder: HttpRequestBuilder): HttpClientCall {
+        val received = requestPipeline.execute(builder, builder.body)
+        builder.body = received as? OutgoingContent
+                ?: throw NoTransformationFound(received::class, OutgoingContent::class)
+
+        return sendPipeline.execute(builder.build())
+    }
 
     /**
      * Returns a new [HttpClient] copying this client configuration,
-     * and aditionally configured by the [block] parameter.
+     * and additionally configured by the [block] parameter.
      */
     fun config(block: suspend HttpClientConfig.() -> Unit): HttpClient = HttpClient(engine, block)
 

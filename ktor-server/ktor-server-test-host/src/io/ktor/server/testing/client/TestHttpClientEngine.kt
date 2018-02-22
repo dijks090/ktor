@@ -14,45 +14,49 @@ import java.util.concurrent.*
 
 private val EmptyByteArray = ByteArray(0)
 
-class TestHttpClientConfig : HttpClientEngineConfig() {
-    lateinit var app: TestApplicationEngine
-}
-
 class TestHttpClientEngine(private val app: TestApplicationEngine) : HttpClientEngine {
 
-    override fun prepareRequest(data: HttpRequestData, call: HttpClientCall): HttpRequest =
-            TestHttpClientRequest(call, this, data)
-
-    internal fun runRequest(
-            method: HttpMethod, url: String, headers: Headers, content: OutgoingContent
-    ): TestApplicationCall {
-        return app.handleRequest(method, url) {
-            headers.flattenForEach { name, value ->
-                if (HttpHeaders.ContentLength == name) return@flattenForEach // set later
-                if (HttpHeaders.ContentType == name) return@flattenForEach // set later
-                addHeader(name, value)
-            }
-
-            content.headers.flattenForEach { name, value ->
-                if (HttpHeaders.ContentLength == name) return@flattenForEach // TODO: throw exception for unsafe header?
-                if (HttpHeaders.ContentType == name) return@flattenForEach
-                addHeader(name, value)
-            }
-
-            val contentLength = headers[HttpHeaders.ContentLength] ?: content.contentLength?.toString()
-            val contentType = headers[HttpHeaders.ContentType] ?: content.contentType?.toString()
-
-            contentLength?.let { addHeader(HttpHeaders.ContentLength, it) }
-            contentType?.let { addHeader(HttpHeaders.ContentType, it) }
-
-            if (content !is OutgoingContent.NoContent) {
-                bodyBytes = content.toByteArray()
-            }
+    override suspend fun execute(call: HttpClientCall, data: HttpRequestData): HttpCallData {
+        val request = TestHttpClientRequest(call, this, data)
+        val responseData = with(request) {
+            runRequest(method, url.fullPath, headers, content).response
         }
+
+        val clientResponse = TestHttpClientResponse(
+                call, responseData.status()!!, responseData.headers.allValues(), responseData.byteContent!!
+        )
+
+        return HttpCallData(request, clientResponse)
     }
 
     override fun close() {
         app.stop(0L, 0L, TimeUnit.MILLISECONDS)
+    }
+
+    private fun runRequest(
+            method: HttpMethod, url: String, headers: Headers, content: OutgoingContent
+    ): TestApplicationCall = app.handleRequest(method, url) {
+        headers.flattenForEach { name, value ->
+            if (HttpHeaders.ContentLength == name) return@flattenForEach // set later
+            if (HttpHeaders.ContentType == name) return@flattenForEach // set later
+            addHeader(name, value)
+        }
+
+        content.headers.flattenForEach { name, value ->
+            if (HttpHeaders.ContentLength == name) return@flattenForEach // TODO: throw exception for unsafe header?
+            if (HttpHeaders.ContentType == name) return@flattenForEach
+            addHeader(name, value)
+        }
+
+        val contentLength = headers[HttpHeaders.ContentLength] ?: content.contentLength?.toString()
+        val contentType = headers[HttpHeaders.ContentType] ?: content.contentType?.toString()
+
+        contentLength?.let { addHeader(HttpHeaders.ContentLength, it) }
+        contentType?.let { addHeader(HttpHeaders.ContentType, it) }
+
+        if (content !is OutgoingContent.NoContent) {
+            bodyBytes = content.toByteArray()
+        }
     }
 
     companion object : HttpClientEngineFactory<TestHttpClientConfig> {
