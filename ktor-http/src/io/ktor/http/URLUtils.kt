@@ -17,7 +17,7 @@ fun URLBuilder.takeFrom(uri: URI) {
         }
     }
 
-    protocol = URLProtocol.createOrDefault(uri.scheme)
+    uri.scheme?.let { protocol = URLProtocol.createOrDefault(it) }
     uri.host?.let { host = it }
     uri.path?.let {
         encodedPath = when (it) {
