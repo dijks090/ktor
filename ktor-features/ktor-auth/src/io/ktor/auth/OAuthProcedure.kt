@@ -8,16 +8,18 @@ import java.io.*
 
 val OAuthKey: Any = "OAuth"
 
-fun AuthenticationPipeline.oauth(client: HttpClient, dispatcher: CoroutineDispatcher,
-                                              providerLookup: ApplicationCall.() -> OAuthServerSettings?,
-                                              urlProvider: ApplicationCall.(OAuthServerSettings) -> String) {
+fun AuthenticationPipeline.oauth(
+        client: HttpClient, dispatcher: CoroutineDispatcher,
+        providerLookup: ApplicationCall.() -> OAuthServerSettings?,
+        urlProvider: ApplicationCall.(OAuthServerSettings) -> String
+) {
     oauth1a(client, dispatcher, providerLookup, urlProvider)
     oauth2(client, dispatcher, providerLookup, urlProvider)
 }
 
 internal fun AuthenticationPipeline.oauth2(client: HttpClient, dispatcher: CoroutineDispatcher,
-                                                        providerLookup: ApplicationCall.() -> OAuthServerSettings?,
-                                                        urlProvider: ApplicationCall.(OAuthServerSettings) -> String) {
+                                           providerLookup: ApplicationCall.() -> OAuthServerSettings?,
+                                           urlProvider: ApplicationCall.(OAuthServerSettings) -> String) {
     intercept(AuthenticationPipeline.RequestAuthentication) { context ->
         val provider = call.providerLookup()
         if (provider is OAuthServerSettings.OAuth2ServerSettings) {
@@ -39,8 +41,8 @@ internal fun AuthenticationPipeline.oauth2(client: HttpClient, dispatcher: Corou
 }
 
 internal fun AuthenticationPipeline.oauth1a(client: HttpClient, dispatcher: CoroutineDispatcher,
-                                                         providerLookup: ApplicationCall.() -> OAuthServerSettings?,
-                                                         urlProvider: ApplicationCall.(OAuthServerSettings) -> String) {
+                                            providerLookup: ApplicationCall.() -> OAuthServerSettings?,
+                                            urlProvider: ApplicationCall.(OAuthServerSettings) -> String) {
     intercept(AuthenticationPipeline.RequestAuthentication) { context ->
         val provider = call.providerLookup()
         if (provider is OAuthServerSettings.OAuth1aServerSettings) {

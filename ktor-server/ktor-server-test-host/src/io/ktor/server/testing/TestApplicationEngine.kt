@@ -47,7 +47,7 @@ class TestApplicationEngine(
             pipeline.execute(call)
         }
 
-        runBlocking {
+        runBlocking(configuration.dispatcher) {
             pipelineJob.join()
             pipelineJob.getCancellationException().cause?.let { throw it }
             call.response.flush()
