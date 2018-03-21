@@ -29,7 +29,7 @@ class AuthBuildersTest {
 
             handleRequest(HttpMethod.Post, "/") {
                 addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                body = "user=$username&password=p"
+                setBody("user=$username&password=p")
             }
         }
     }
