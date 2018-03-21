@@ -79,4 +79,37 @@ class TestApplicationEngineTest {
             }
         }
     }
+
+    @Test
+    fun testResponseAwait() {
+        withTestApplication {
+            application.install(Routing) {
+                get("/good") {
+                    call.respond(HttpStatusCode.OK, "The Response")
+                }
+                get("/broken") {
+                    delay(100)
+                    call.respond(HttpStatusCode.OK, "The Response")
+                }
+                get("/fail") {
+                    error("Handle me")
+                }
+            }
+
+            with(handleRequest(HttpMethod.Get, "/good")) {
+                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals("The Response", response.content)
+            }
+
+            with(handleRequest(HttpMethod.Get, "/broken")) {
+                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals("The Response", response.content)
+
+            }
+
+            assertFailsWith<IllegalStateException> {
+                handleRequest(HttpMethod.Get, "/fail")
+            }
+        }
+    }
 }
